@@ -1,0 +1,26 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+
+# IDE-specific files (e.g., Cursor, VSCode)
+.vscode/
+.cursor/
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+*.whl
+*.spec # PyInstaller spec file
+
+# Environments
+.env
+venv/
+env/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
