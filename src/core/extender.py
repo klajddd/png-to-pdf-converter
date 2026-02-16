@@ -48,10 +48,26 @@ def _image_paths_to_pdf(
     first.save(output_pdf_path, "PDF", resolution=resolution, save_all=True, append_images=rest)
 
 
+def _append_pdf_to_writer(writer: PdfWriter, pdf_path: Path) -> int:
+    reader = PdfReader(str(pdf_path))
+    for page in reader.pages:
+        writer.add_page(page)
+    return len(reader.pages)
+
+
+def _append_images_to_writer(writer: PdfWriter, image_paths: List[Path], temp_dir: Path) -> int:
+    if not image_paths:
+        return 0
+
+    tmp_pdf = temp_dir / f"_images_{abs(hash(tuple(str(p) for p in image_paths)))}.pdf"
+    _image_paths_to_pdf(image_paths, tmp_pdf)
+    return _append_pdf_to_writer(writer, tmp_pdf)
+
+
 def extend_document(
     base_path: Path,
     base_type: str,
-    attachment_image_paths: List[Path],
+    attachment_paths: List[Path],
     output_dir: Path,
     output_filename: str,
     temp_dir: Path,
@@ -62,7 +78,7 @@ def extend_document(
     if base_type_norm not in {"pdf", "docx"}:
         raise ValueError("base_type must be 'pdf' or 'docx'")
 
-    if not attachment_image_paths:
+    if not attachment_paths:
         raise ValueError("No attachments provided")
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -88,21 +104,27 @@ def extend_document(
         convert(str(base_path), str(temp_base_pdf_path))
         base_pdf_path = temp_base_pdf_path
 
-    attachments_pdf_path = temp_dir / "_attachments.pdf"
-    attachments_pdf_path.parent.mkdir(parents=True, exist_ok=True)
-    _image_paths_to_pdf(attachment_image_paths, attachments_pdf_path)
-
     writer = PdfWriter()
 
-    base_reader = PdfReader(str(base_pdf_path))
-    for page in base_reader.pages:
-        writer.add_page(page)
+    _append_pdf_to_writer(writer, base_pdf_path)
 
-    attachments_reader = PdfReader(str(attachments_pdf_path))
-    for page in attachments_reader.pages:
-        writer.add_page(page)
+    temp_dir.mkdir(parents=True, exist_ok=True)
+
+    added_pages = 0
+    buffered_images: List[Path] = []
+
+    for p in attachment_paths:
+        suffix = p.suffix.lower()
+        if suffix == ".pdf":
+            added_pages += _append_images_to_writer(writer, buffered_images, temp_dir)
+            buffered_images = []
+            added_pages += _append_pdf_to_writer(writer, p)
+        else:
+            buffered_images.append(p)
+
+    added_pages += _append_images_to_writer(writer, buffered_images, temp_dir)
 
     with output_path.open("wb") as f:
         writer.write(f)
 
-    return output_path, renamed_base_path, len(attachments_reader.pages)
+    return output_path, renamed_base_path, added_pages

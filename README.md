@@ -45,7 +45,7 @@ python src/main.py
 
 ## Building a Standalone Application (macOS example)
 
-To create a double-clickable macOS `.app` bundle, use PyInstaller:
+To create a macOS `.app` bundle, use PyInstaller:
 
 1.  **Install PyInstaller (if not already installed):**
 

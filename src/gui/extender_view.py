@@ -19,6 +19,8 @@ class ExtenderView:
         self.base_type = tk.StringVar(value="pdf")
         self.base_path = tk.StringVar(value="")
 
+        self.attachments_summary = tk.StringVar(value="")
+
         self.output_dir = tk.StringVar(value=os.getcwd())
         self.output_name = tk.StringVar(value="")
 
@@ -56,7 +58,7 @@ class ExtenderView:
         self.base_drop_label = ttk.Label(base_drop, text="Drag & drop PDF/DOCX here")
         self.base_drop_label.place(relx=0.5, rely=0.5, anchor="center")
 
-        self.attach_drop_label = ttk.Label(attach_drop, text="Drag & drop images here")
+        self.attach_drop_label = ttk.Label(attach_drop, text="Drag & drop PDFs or images here")
         self.attach_drop_label.place(relx=0.5, rely=0.5, anchor="center")
 
         base_drop.drop_target_register(DND_FILES)
@@ -76,7 +78,11 @@ class ExtenderView:
         attach_controls = ttk.Frame(self.frame)
         attach_controls.pack(fill="x", pady=(0, 12))
 
-        ttk.Button(attach_controls, text="Browse images", command=self._browse_attachments).pack(side="left")
+        ttk.Label(attach_controls, text="Attachments").pack(side="left")
+        ttk.Entry(attach_controls, textvariable=self.attachments_summary, state="readonly").pack(
+            side="left", fill="x", expand=True, padx=8
+        )
+        ttk.Button(attach_controls, text="Browse", command=self._browse_attachments).pack(side="left")
 
         out_row = ttk.Frame(self.frame)
         out_row.pack(fill="x", pady=(0, 10))
@@ -94,10 +100,10 @@ class ExtenderView:
         btn_row = ttk.Frame(self.frame)
         btn_row.pack(fill="x", pady=(0, 12))
 
-        self.extend_btn = ttk.Button(btn_row, text="Extend", command=self._start_extend)
+        self.extend_btn = ttk.Button(btn_row, text="Extend", command=self._start_extend, style="Primary.TButton")
         self.extend_btn.pack(side="left")
 
-        self.clear_btn = ttk.Button(btn_row, text="Clear", command=self._clear)
+        self.clear_btn = ttk.Button(btn_row, text="Clear", command=self._clear, style="Danger.TButton")
         self.clear_btn.pack(side="left", padx=10)
 
         list_outer = tk.Frame(self.frame, bg="#FFFFFF")
@@ -150,7 +156,14 @@ class ExtenderView:
             self.output_dir.set(directory)
 
     def _browse_attachments(self):
-        files = filedialog.askopenfilenames(title="Select images", filetypes=[("Images", "*.*")])
+        files = filedialog.askopenfilenames(
+            title="Select attachments",
+            filetypes=[
+                ("PDF or Images", "*.pdf *.png *.jpg *.jpeg *.webp *.bmp *.tiff *.gif"),
+                ("PDF", "*.pdf"),
+                ("Images", "*.png *.jpg *.jpeg *.webp *.bmp *.tiff *.gif"),
+            ],
+        )
         if files:
             self._add_attachments([Path(f) for f in files])
 
@@ -175,18 +188,27 @@ class ExtenderView:
         except Exception:
             return False
 
+    def _is_pdf(self, p: Path) -> bool:
+        return p.suffix.lower() == ".pdf"
+
     def _add_attachments(self, paths):
-        new_images = [p for p in paths if p.is_file() and self._is_image(p)]
+        new_items = [
+            p
+            for p in paths
+            if p.is_file() and (self._is_pdf(p) or self._is_image(p))
+        ]
         existing = {f["path"] for f in self.files_to_append if not f.get("removed", False)}
 
-        for p in new_images:
+        for p in new_items:
             if str(p) in existing:
                 continue
             self.files_to_append.append({"path": str(p), "removed": False})
 
+        self.attachments_summary.set(f"{len([f for f in self.files_to_append if not f.get('removed', False)])} file(s) selected")
+
         self._refresh_list()
         self._update_buttons()
-        self.status_label.config(text="")
+        self.status_label.config(text="", style="TLabel")
 
     def _refresh_list(self):
         for child in self.scrollable_frame.winfo_children():
@@ -216,12 +238,17 @@ class ExtenderView:
         self._refresh_list()
         self._update_buttons()
 
+        self.attachments_summary.set(
+            f"{len([f for f in self.files_to_append if not f.get('removed', False)])} file(s) selected"
+        )
+
     def _clear(self):
         self.base_path.set("")
         self.files_to_append = []
         self.output_name.set("")
         self.output_dir.set(os.getcwd())
-        self.status_label.config(text="")
+        self.attachments_summary.set("")
+        self.status_label.config(text="", style="TLabel")
         self._refresh_list()
         self._update_buttons()
 
@@ -250,7 +277,7 @@ class ExtenderView:
                     out_path, renamed_base, pages = extend_document(
                         base_path=base,
                         base_type=base_type,
-                        attachment_image_paths=attachments,
+                        attachment_paths=attachments,
                         output_dir=out_dir,
                         output_filename=out_name,
                         temp_dir=Path(td),
@@ -259,11 +286,14 @@ class ExtenderView:
                 def update_status():
                     if renamed_base:
                         self.base_path.set(str(renamed_base))
-                    self.status_label.config(text=f"Created: {out_path.name}  Added pages: {pages}")
+                    self.status_label.config(
+                        text=f"Created: {out_path.name}  Added pages: {pages}",
+                        style="Success.TLabel",
+                    )
 
                 self.root.after(0, update_status)
             except Exception as e:
-                self.root.after(0, lambda: self.status_label.config(text=f"Error: {e}"))
+                self.root.after(0, lambda: self.status_label.config(text=f"Error: {e}", style="Error.TLabel"))
 
         threading.Thread(target=worker).start()
 

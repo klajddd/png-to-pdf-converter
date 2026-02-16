@@ -67,10 +67,10 @@ class ConverterView:
         self.browse_btn = ttk.Button(btn_row, text="Browse", command=self._browse_files)
         self.browse_btn.pack(side="left")
 
-        self.convert_btn = ttk.Button(btn_row, text="Convert", command=self._start_conversion)
+        self.convert_btn = ttk.Button(btn_row, text="Convert", command=self._start_conversion, style="Primary.TButton")
         self.convert_btn.pack(side="left", padx=10)
 
-        self.clear_btn = ttk.Button(btn_row, text="Clear", command=self._clear_files)
+        self.clear_btn = ttk.Button(btn_row, text="Clear", command=self._clear_files, style="Danger.TButton")
         self.clear_btn.pack(side="left")
 
         list_outer = tk.Frame(self.frame, bg="#FFFFFF")
@@ -133,7 +133,7 @@ class ConverterView:
 
         self._refresh_list()
         self._update_button_state()
-        self.status_label.config(text="")
+        self.status_label.config(text="", style="TLabel")
 
     def _refresh_list(self):
         for child in self.scrollable_frame.winfo_children():
@@ -167,7 +167,7 @@ class ConverterView:
         self.files_to_convert = []
         self._refresh_list()
         self._update_button_state()
-        self.status_label.config(text="")
+        self.status_label.config(text="", style="TLabel")
 
     def _update_button_state(self):
         active = [f for f in self.files_to_convert if not f.get("removed", False)]
@@ -215,7 +215,15 @@ class ConverterView:
             auto_rename_if_exists=True,
         )
 
-        self.root.after(0, lambda: self.status_label.config(text=f"Converted: {converted}  Skipped: {skipped}"))
+        def update_status():
+            if converted > 0 and skipped == 0:
+                self.status_label.config(text=f"Converted: {converted}", style="Success.TLabel")
+            elif converted > 0:
+                self.status_label.config(text=f"Converted: {converted}  Skipped: {skipped}", style="Success.TLabel")
+            else:
+                self.status_label.config(text=f"Skipped: {skipped}", style="Error.TLabel")
+
+        self.root.after(0, update_status)
 
     def _on_drag_start(self, event, file_path):
         self.dragged_item_path = file_path

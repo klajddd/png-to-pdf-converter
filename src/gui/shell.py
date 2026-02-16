@@ -23,6 +23,33 @@ class ShellApp:
         style.configure("Nav.TFrame", background="#F6F6F6")
         style.configure("Content.TFrame", background="#FFFFFF")
         style.configure(self._nav_button_style, padding=(12, 10), anchor="w")
+
+        style.configure(
+            "Primary.TButton",
+            padding=(12, 10),
+            background="#2F6FED",
+            foreground="#FFFFFF",
+        )
+        style.map(
+            "Primary.TButton",
+            background=[("active", "#2A63D4"), ("disabled", "#AFC3F7")],
+            foreground=[("active", "#FFFFFF"), ("disabled", "#FFFFFF")],
+        )
+
+        style.configure(
+            "Danger.TButton",
+            padding=(12, 10),
+            background="#E45757",
+            foreground="#FFFFFF",
+        )
+        style.map(
+            "Danger.TButton",
+            background=[("active", "#CC4C4C"), ("disabled", "#F0B1B1")],
+            foreground=[("active", "#FFFFFF"), ("disabled", "#FFFFFF")],
+        )
+
+        style.configure("Success.TLabel", foreground="#2F7D46", background="#FFFFFF")
+        style.configure("Error.TLabel", foreground="#B23B3B", background="#FFFFFF")
         style.configure(
             self._nav_button_active_style,
             padding=(12, 10),
