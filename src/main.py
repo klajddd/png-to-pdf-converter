@@ -1,7 +1,7 @@
 import tkinterdnd2 as TkinterDnD
-from src.gui.app_gui import PNGtoPDFConverter
+from src.gui.shell import ShellApp
 
 if __name__ == "__main__":
     root = TkinterDnD.Tk()
-    app = PNGtoPDFConverter(root)
+    app = ShellApp(root)
     root.mainloop()

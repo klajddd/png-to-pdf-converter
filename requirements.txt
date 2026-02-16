@@ -1,2 +1,4 @@
 Pillow
 tkinterdnd2
+pypdf
+docx2pdf

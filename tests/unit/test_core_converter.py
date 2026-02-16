@@ -23,11 +23,17 @@ class TestCoreConverter(unittest.TestCase):
         self.test_dir.rmdir()
 
     @patch('PIL.Image.open')
-    @patch('PIL.Image.Image.save')
-    def test_process_images_to_pdf_single_pdf_success(self, mock_save, mock_open):
-        mock_img_instance = MagicMock()
-        mock_img_instance.mode = 'RGB'
-        mock_open.return_value = mock_img_instance
+    def test_process_images_to_pdf_single_pdf_success(self, mock_open):
+        mock_img_instance1 = MagicMock()
+        mock_img_instance1.mode = 'RGB'
+        mock_img_instance1.save = MagicMock()
+
+        mock_img_instance2 = MagicMock()
+        mock_img_instance2.mode = 'RGB'
+        # Add save mock to the second instance as well, for robustness
+        mock_img_instance2.save = MagicMock() 
+
+        mock_open.side_effect = [mock_img_instance1, mock_img_instance2] # Return distinct mocks
 
         png_paths = [
             "/mock/path/image1.png",
@@ -49,22 +55,22 @@ class TestCoreConverter(unittest.TestCase):
         self.assertEqual(converted, 2)
         self.assertEqual(skipped, 0)
         self.assertEqual(mock_open.call_count, 2)
-        mock_save.assert_called_once_with(
+        mock_img_instance1.save.assert_called_once_with(
             output_dir / "combined_images.pdf",
             "PDF",
             resolution=100.0,
             save_all=True,
-            append_images=[mock_img_instance, mock_img_instance] # Need to adjust this for actual mock_img_instance objects
+            append_images=[mock_img_instance2]
         )
         # Verify status updates
         self.mock_update_status.assert_any_call("/mock/path/image1.png", "✔", "green")
         self.mock_update_status.assert_any_call("/mock/path/image2.png", "✔", "green")
 
     @patch('PIL.Image.open')
-    @patch('PIL.Image.Image.save')
-    def test_process_images_to_pdf_separate_pdfs_success(self, mock_save, mock_open):
+    def test_process_images_to_pdf_separate_pdfs_success(self, mock_open):
         mock_img_instance = MagicMock()
         mock_img_instance.mode = 'RGB'
+        mock_img_instance.save = MagicMock() # Attach mock save to the instance
         mock_open.return_value = mock_img_instance
 
         png_paths = [
@@ -87,9 +93,9 @@ class TestCoreConverter(unittest.TestCase):
         self.assertEqual(converted, 2)
         self.assertEqual(skipped, 0)
         self.assertEqual(mock_open.call_count, 2)
-        self.assertEqual(mock_save.call_count, 2)
-        mock_save.assert_any_call(output_dir / "imageA.pdf", "PDF", resolution=100.0, quality=100)
-        mock_save.assert_any_call(output_dir / "imageB.pdf", "PDF", resolution=100.0, quality=100)
+        self.assertEqual(mock_img_instance.save.call_count, 2) # Assert on instance's save mock
+        mock_img_instance.save.assert_any_call(output_dir / "imageA.pdf", "PDF", resolution=100.0, quality=100)
+        mock_img_instance.save.assert_any_call(output_dir / "imageB.pdf", "PDF", resolution=100.0, quality=100)
         self.mock_update_status.assert_any_call("/mock/path/imageA.png", "✔", "green")
         self.mock_update_status.assert_any_call("/mock/path/imageB.png", "✔", "green")
 
@@ -119,13 +125,13 @@ class TestCoreConverter(unittest.TestCase):
         self.mock_update_status.assert_any_call("/mock/path/bad_image.png", "✖", "red")
 
     @patch('PIL.Image.open')
-    @patch('PIL.Image.Image.save')
-    def test_process_images_to_pdf_single_pdf_rgba_conversion(self, mock_save, mock_open):
+    def test_process_images_to_pdf_single_pdf_rgba_conversion(self, mock_open):
         mock_img_rgba = MagicMock()
         mock_img_rgba.mode = 'RGBA'
         mock_img_rgba.split.return_value = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
         mock_rgb_image = MagicMock()
         mock_rgb_image.mode = 'RGB'
+        mock_rgb_image.save = MagicMock() # Attach mock save to the converted RGB instance
 
         mock_image_new = MagicMock(return_value=mock_rgb_image)
 
@@ -149,7 +155,7 @@ class TestCoreConverter(unittest.TestCase):
             self.assertEqual(skipped, 0)
             mock_image_new.assert_called_once_with('RGB', mock_img_rgba.size, (255, 255, 255))
             mock_rgb_image.paste.assert_called_once_with(mock_img_rgba, mask=mock_img_rgba.split()[3])
-            mock_save.assert_called_once() # save called on the converted RGB image
+            mock_rgb_image.save.assert_called_once() # Assert on the converted RGB image's save method
 
 if __name__ == '__main__':
     unittest.main()
