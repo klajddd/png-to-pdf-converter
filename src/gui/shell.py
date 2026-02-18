@@ -27,12 +27,12 @@ class ShellApp:
         style.configure(
             "Primary.TButton",
             padding=(12, 10),
-            background="#2F6FED",
+            background="#386757",
             foreground="#FFFFFF",
         )
         style.map(
             "Primary.TButton",
-            background=[("active", "#2A63D4"), ("disabled", "#AFC3F7")],
+            background=[("active", "#2F584B"), ("disabled", "#A9BDB6")],
             foreground=[("active", "#FFFFFF"), ("disabled", "#FFFFFF")],
         )
 
@@ -54,12 +54,12 @@ class ShellApp:
             self._nav_button_active_style,
             padding=(12, 10),
             anchor="w",
-            background="#2F6FED",
+            background="#3B3B3B",
             foreground="#FFFFFF",
         )
         style.map(
             self._nav_button_active_style,
-            background=[("active", "#2A63D4"), ("disabled", "#2F6FED")],
+            background=[("active", "#2E2E2E"), ("disabled", "#3B3B3B")],
             foreground=[("active", "#FFFFFF"), ("disabled", "#FFFFFF")],
         )
 

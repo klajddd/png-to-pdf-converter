@@ -83,7 +83,7 @@ def extend_document(
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    output_path = _ensure_unique_path(output_dir / output_filename)
+    output_path = output_dir / output_filename
 
     renamed_base_path: Optional[Path] = None
 
