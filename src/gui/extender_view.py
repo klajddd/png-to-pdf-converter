@@ -6,7 +6,10 @@ from pathlib import Path
 from tkinter import filedialog, ttk
 
 from PIL import Image
-from tkinterdnd2 import DND_FILES
+try:
+    from tkinterdnd2 import DND_FILES
+except Exception:  # pragma: no cover
+    DND_FILES = None
 
 from src.core.extender import extend_document
 
@@ -61,11 +64,12 @@ class ExtenderView:
         self.attach_drop_label = ttk.Label(attach_drop, text="Drag & drop PDFs or images here")
         self.attach_drop_label.place(relx=0.5, rely=0.5, anchor="center")
 
-        base_drop.drop_target_register(DND_FILES)
-        base_drop.dnd_bind("<<Drop>>", self._handle_base_drop)
+        if DND_FILES is not None:
+            base_drop.drop_target_register(DND_FILES)
+            base_drop.dnd_bind("<<Drop>>", self._handle_base_drop)
 
-        attach_drop.drop_target_register(DND_FILES)
-        attach_drop.dnd_bind("<<Drop>>", self._handle_attachments_drop)
+            attach_drop.drop_target_register(DND_FILES)
+            attach_drop.dnd_bind("<<Drop>>", self._handle_attachments_drop)
 
         controls_row = ttk.Frame(self.frame)
         controls_row.pack(fill="x", pady=(12, 10))

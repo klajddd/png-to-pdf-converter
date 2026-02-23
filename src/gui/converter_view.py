@@ -5,7 +5,10 @@ from pathlib import Path
 from tkinter import filedialog, ttk
 
 from PIL import Image
-from tkinterdnd2 import DND_FILES
+try:
+    from tkinterdnd2 import DND_FILES
+except Exception:  # pragma: no cover
+    DND_FILES = None
 
 from src.core.converter import process_images_to_pdf
 
@@ -45,8 +48,9 @@ class ConverterView:
         self.drop_label = ttk.Label(self.drop_zone, text="Drag & drop images here, or use Browse")
         self.drop_label.place(relx=0.5, rely=0.5, anchor="center")
 
-        self.drop_zone.drop_target_register(DND_FILES)
-        self.drop_zone.dnd_bind("<<Drop>>", self._handle_drop)
+        if DND_FILES is not None:
+            self.drop_zone.drop_target_register(DND_FILES)
+            self.drop_zone.dnd_bind("<<Drop>>", self._handle_drop)
 
         output_row = ttk.Frame(self.frame)
         output_row.pack(fill="x", pady=(12, 10))
