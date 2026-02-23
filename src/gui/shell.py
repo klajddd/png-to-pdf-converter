@@ -68,6 +68,12 @@ class ShellApp:
                 "minsize": (860, 620),
             },
             {
+                "key": "timer",
+                "name": "Timer",
+                "size": (860, 640),
+                "minsize": (780, 560),
+            },
+            {
                 "key": "extender",
                 "name": "Extender",
                 "size": (980, 720),
@@ -236,6 +242,10 @@ class ShellApp:
                 from src.gui.converter_view import ConverterView
 
                 view = ConverterView(container, root=self.root)
+            elif key == "timer":
+                from src.gui.timer_view import TimerView
+
+                view = TimerView(container, root=self.root)
             else:
                 from src.gui.extender_view import ExtenderView
 
