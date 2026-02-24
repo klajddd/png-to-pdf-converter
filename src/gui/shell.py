@@ -70,7 +70,7 @@ class ShellApp:
             {
                 "key": "timer",
                 "name": "Timer",
-                "size": (860, 640),
+                "size": (1170, 640),
                 "minsize": (780, 560),
             },
             {
