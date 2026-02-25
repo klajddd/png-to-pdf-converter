@@ -2,6 +2,10 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
 
+from pathlib import Path
+
+from PIL import Image, ImageTk
+
 class ShellApp:
     def __init__(self, root):
         self.root = root
@@ -15,6 +19,9 @@ class ShellApp:
         self._tile_pressed_bg = "#CFCAD8"
 
         self._open_windows: dict[str, tk.Toplevel] = {}
+
+        self._icon_images: dict[str, ImageTk.PhotoImage] = {}
+        self._load_icons()
 
         style = ttk.Style(self.root)
         try:
@@ -168,8 +175,13 @@ class ShellApp:
 
         icon = tk.Canvas(outer, width=64, height=64, bg=self._tile_bg, highlightthickness=0)
         icon.grid(row=0, column=0, pady=(18, 8))
-        icon.create_rectangle(8, 8, 56, 56, outline="#B8B8B8", width=2)
-        icon.create_text(32, 32, text=util["name"][0], fill="#6B6B6B", font=("Helvetica", 18, "bold"))
+
+        tile_img = self._icon_images.get(f"{util['key']}_tile")
+        if tile_img is not None:
+            icon.create_image(32, 32, image=tile_img)
+        else:
+            icon.create_rectangle(8, 8, 56, 56, outline="#B8B8B8", width=2)
+            icon.create_text(32, 32, text=util["name"][0], fill="#6B6B6B", font=("Helvetica", 18, "bold"))
 
         lbl = tk.Label(outer, text=util["name"], bg=self._tile_bg, fg="#1F1F1F", font=("Helvetica", 12))
         lbl.grid(row=1, column=0)
@@ -232,6 +244,13 @@ class ShellApp:
         win.minsize(min_w, min_h)
         win.geometry(f"{w}x{h}")
 
+        win_icon = self._icon_images.get(f"{key}_window")
+        if win_icon is not None:
+            try:
+                win.iconphoto(True, win_icon)
+            except Exception:
+                pass
+
         container = ttk.Frame(win)
         container.pack(fill="both", expand=True)
         container.rowconfigure(0, weight=1)
@@ -245,7 +264,7 @@ class ShellApp:
             elif key == "timer":
                 from src.gui.timer_view import TimerView
 
-                view = TimerView(container, root=self.root)
+                view = TimerView(container, root=self.root, header_icon=self._icon_images.get("timer_header"))
             else:
                 from src.gui.extender_view import ExtenderView
 
@@ -275,3 +294,24 @@ class ShellApp:
             win.destroy()
 
         win.protocol("WM_DELETE_WINDOW", on_close)
+
+    def _load_icons(self):
+        base_dir = Path(__file__).resolve().parents[3]
+        timer_path = base_dir / "assets" / "icons" / "timer.png"
+
+        if not timer_path.exists():
+            return
+
+        try:
+            img = Image.open(timer_path)
+            img.load()
+
+            tile = ImageTk.PhotoImage(img.resize((64, 64), Image.LANCZOS))
+            window = ImageTk.PhotoImage(img.resize((32, 32), Image.LANCZOS))
+            header = ImageTk.PhotoImage(img.resize((24, 24), Image.LANCZOS))
+
+            self._icon_images["timer_tile"] = tile
+            self._icon_images["timer_window"] = window
+            self._icon_images["timer_header"] = header
+        except Exception:
+            return

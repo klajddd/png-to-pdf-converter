@@ -33,9 +33,11 @@ class _TimerState:
 
 
 class TimerView:
-    def __init__(self, parent, root):
+    def __init__(self, parent, root, header_icon=None):
         self.root = root
         self.frame = ttk.Frame(parent, padding=(18, 16))
+
+        self._header_icon = header_icon
 
         self._next_timer_num = 1
         self._timers: list[_TimerState] = []
@@ -57,8 +59,13 @@ class TimerView:
         self._start_tick_loop()
 
     def _build_ui(self):
-        title = ttk.Label(self.frame, text="Timer", font=("Helvetica", 16, "bold"))
-        title.pack(anchor="w")
+        title_row = ttk.Frame(self.frame)
+        title_row.pack(anchor="w")
+
+        if self._header_icon is not None:
+            ttk.Label(title_row, image=self._header_icon).pack(side="left", padx=(0, 8))
+
+        ttk.Label(title_row, text="Timer", font=("Helvetica", 16, "bold")).pack(side="left")
 
         subtitle = ttk.Label(self.frame, text="Run multiple countdowns and stopwatches at the same time")
         subtitle.pack(anchor="w", pady=(2, 14))
