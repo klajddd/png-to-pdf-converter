@@ -173,15 +173,21 @@ class ShellApp:
         outer.configure(width=150, height=140)
         outer.grid_propagate(False)
 
-        icon = tk.Canvas(outer, width=64, height=64, bg=self._tile_bg, highlightthickness=0)
-        icon.grid(row=0, column=0, pady=(18, 8))
-
-        tile_img = self._icon_images.get(f"{util['key']}_tile")
-        if tile_img is not None:
-            icon.create_image(32, 32, image=tile_img)
+        tile_full_img = self._icon_images.get(f"{util['key']}_tile_full")
+        if tile_full_img is not None:
+            icon = tk.Canvas(outer, width=150, height=108, bg=self._tile_bg, highlightthickness=0)
+            icon.grid(row=0, column=0, pady=(0, 6))
+            icon.create_image(75, 54, image=tile_full_img)
         else:
-            icon.create_rectangle(8, 8, 56, 56, outline="#B8B8B8", width=2)
-            icon.create_text(32, 32, text=util["name"][0], fill="#6B6B6B", font=("Helvetica", 18, "bold"))
+            icon = tk.Canvas(outer, width=64, height=64, bg=self._tile_bg, highlightthickness=0)
+            icon.grid(row=0, column=0, pady=(18, 8))
+
+            tile_img = self._icon_images.get(f"{util['key']}_tile")
+            if tile_img is not None:
+                icon.create_image(32, 32, image=tile_img)
+            else:
+                icon.create_rectangle(8, 8, 56, 56, outline="#B8B8B8", width=2)
+                icon.create_text(32, 32, text=util["name"][0], fill="#6B6B6B", font=("Helvetica", 18, "bold"))
 
         lbl = tk.Label(outer, text=util["name"], bg=self._tile_bg, fg="#1F1F1F", font=("Helvetica", 12))
         lbl.grid(row=1, column=0)
@@ -260,20 +266,27 @@ class ShellApp:
             if key == "converter":
                 from src.gui.converter_view import ConverterView
 
-                view = ConverterView(container, root=self.root)
+                view = ConverterView(container, root=self.root, header_icon=self._icon_images.get("converter_header"))
             elif key == "timer":
                 from src.gui.timer_view import TimerView
 
-                view = TimerView(container, root=self.root, header_icon=self._icon_images.get("timer_header"))
+                view = TimerView(container, root=self.root, window=win, header_icon=self._icon_images.get("timer_header"))
             else:
                 from src.gui.extender_view import ExtenderView
 
-                view = ExtenderView(container, root=self.root)
+                view = ExtenderView(container, root=self.root, header_icon=self._icon_images.get("extender_header"))
         except Exception as e:
             win.destroy()
+
+            extra = ""
+            if isinstance(e, ModuleNotFoundError):
+                missing = getattr(e, "name", "") or ""
+                if missing.lower() == "pypdf":
+                    extra = "\n\nTo enable Extender, install it with:\n\npip install pypdf"
+
             messagebox.showerror(
                 "UtilityBox",
-                f"Could not open '{util['name']}'.\n\n{e}",
+                f"Could not open '{util['name']}'.\n\n{e}{extra}",
                 parent=self.root,
             )
             try:
@@ -283,9 +296,20 @@ class ShellApp:
                 pass
             return
 
+        try:
+            setattr(win, "_utility_view", view)
+        except Exception:
+            pass
+
         view.frame.grid(row=0, column=0, sticky="nsew")
 
         def on_close():
+            try:
+                v = getattr(win, "_utility_view", None)
+                if v is not None and hasattr(v, "cleanup"):
+                    v.cleanup()
+            except Exception:
+                pass
             try:
                 if self._open_windows.get(key) is win:
                     del self._open_windows[key]
@@ -296,22 +320,24 @@ class ShellApp:
         win.protocol("WM_DELETE_WINDOW", on_close)
 
     def _load_icons(self):
-        base_dir = Path(__file__).resolve().parents[3]
-        timer_path = base_dir / "assets" / "icons" / "timer.png"
+        base_dir = Path(__file__).resolve().parents[2]
+        icons_dir = base_dir / "assets" / "icons"
 
-        if not timer_path.exists():
-            return
+        def load_one(key: str):
+            p = icons_dir / f"{key}.png"
+            if not p.exists():
+                return
+            try:
+                img = Image.open(p)
+                img.load()
 
-        try:
-            img = Image.open(timer_path)
-            img.load()
+                self._icon_images[f"{key}_tile"] = ImageTk.PhotoImage(img.resize((64, 64), Image.LANCZOS))
+                self._icon_images[f"{key}_tile_full"] = ImageTk.PhotoImage(img.resize((150, 108), Image.LANCZOS))
+                self._icon_images[f"{key}_window"] = ImageTk.PhotoImage(img.resize((32, 32), Image.LANCZOS))
+                self._icon_images[f"{key}_header"] = ImageTk.PhotoImage(img.resize((24, 24), Image.LANCZOS))
+            except Exception:
+                return
 
-            tile = ImageTk.PhotoImage(img.resize((64, 64), Image.LANCZOS))
-            window = ImageTk.PhotoImage(img.resize((32, 32), Image.LANCZOS))
-            header = ImageTk.PhotoImage(img.resize((24, 24), Image.LANCZOS))
-
-            self._icon_images["timer_tile"] = tile
-            self._icon_images["timer_window"] = window
-            self._icon_images["timer_header"] = header
-        except Exception:
-            return
+        load_one("timer")
+        load_one("converter")
+        load_one("extender")

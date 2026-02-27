@@ -15,9 +15,11 @@ from src.core.extender import extend_document
 
 
 class ExtenderView:
-    def __init__(self, parent, root):
+    def __init__(self, parent, root, header_icon=None):
         self.root = root
         self.frame = ttk.Frame(parent, padding=(18, 16))
+
+        self._header_icon = header_icon
 
         self.base_type = tk.StringVar(value="pdf")
         self.base_path = tk.StringVar(value="")
@@ -36,8 +38,13 @@ class ExtenderView:
         self._update_buttons()
 
     def _build_ui(self):
-        title = ttk.Label(self.frame, text="Extender", font=("Helvetica", 16, "bold"))
-        title.pack(anchor="w")
+        title_row = ttk.Frame(self.frame)
+        title_row.pack(anchor="w")
+
+        if self._header_icon is not None:
+            ttk.Label(title_row, image=self._header_icon).pack(side="left", padx=(0, 8))
+
+        ttk.Label(title_row, text="Extender", font=("Helvetica", 16, "bold")).pack(side="left")
 
         subtitle = ttk.Label(self.frame, text="Append images to an existing document")
         subtitle.pack(anchor="w", pady=(2, 14))

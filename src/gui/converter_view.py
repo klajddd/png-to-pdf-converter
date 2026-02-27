@@ -14,9 +14,11 @@ from src.core.converter import process_images_to_pdf
 
 
 class ConverterView:
-    def __init__(self, parent, root):
+    def __init__(self, parent, root, header_icon=None):
         self.root = root
         self.frame = ttk.Frame(parent, padding=(18, 16))
+
+        self._header_icon = header_icon
 
         self.files_to_convert = []
         self.dragged_item_path = None
@@ -31,8 +33,13 @@ class ConverterView:
         self._update_button_state()
 
     def _build_ui(self):
-        title = ttk.Label(self.frame, text="Converter", font=("Helvetica", 16, "bold"))
-        title.pack(anchor="w")
+        title_row = ttk.Frame(self.frame)
+        title_row.pack(anchor="w")
+
+        if self._header_icon is not None:
+            ttk.Label(title_row, image=self._header_icon).pack(side="left", padx=(0, 8))
+
+        ttk.Label(title_row, text="Converter", font=("Helvetica", 16, "bold")).pack(side="left")
 
         subtitle = ttk.Label(self.frame, text="Convert images into a single PDF")
         subtitle.pack(anchor="w", pady=(2, 14))

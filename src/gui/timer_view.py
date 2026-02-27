@@ -33,8 +33,9 @@ class _TimerState:
 
 
 class TimerView:
-    def __init__(self, parent, root, header_icon=None):
+    def __init__(self, parent, root, window=None, header_icon=None):
         self.root = root
+        self.window = window
         self.frame = ttk.Frame(parent, padding=(18, 16))
 
         self._header_icon = header_icon
@@ -53,10 +54,20 @@ class TimerView:
         self.beep_on_finish = tk.BooleanVar(value=True)
 
         self._tick_job: str | None = None
+        self._closed = False
 
         self._build_ui()
         self._sync_duration_enabled()
         self._start_tick_loop()
+
+    def cleanup(self):
+        self._closed = True
+        if self._tick_job is not None:
+            try:
+                self.root.after_cancel(self._tick_job)
+            except Exception:
+                pass
+            self._tick_job = None
 
     def _build_ui(self):
         title_row = ttk.Frame(self.frame)
@@ -252,6 +263,9 @@ class TimerView:
         if widgets is None:
             return
 
+        if self._closed or not self.frame.winfo_exists():
+            return
+
         row: tk.Frame = widgets["row"]  # type: ignore[assignment]
         left: tk.Frame = widgets["left"]  # type: ignore[assignment]
         name_lbl: tk.Label = widgets["name"]  # type: ignore[assignment]
@@ -259,12 +273,15 @@ class TimerView:
         time_lbl: tk.Label = widgets["time"]  # type: ignore[assignment]
         start_btn: ttk.Button = widgets["start"]  # type: ignore[assignment]
 
-        if st.mode == "countdown":
-            remaining = self._get_countdown_remaining(st)
-            time_lbl.config(text=_format_hhmmss(remaining))
-        else:
-            elapsed = int(self._get_elapsed(st))
-            time_lbl.config(text=_format_hhmmss(elapsed))
+        try:
+            if st.mode == "countdown":
+                remaining = self._get_countdown_remaining(st)
+                time_lbl.config(text=_format_hhmmss(remaining))
+            else:
+                elapsed = int(self._get_elapsed(st))
+                time_lbl.config(text=_format_hhmmss(elapsed))
+        except Exception:
+            return
 
         if st.finished and st.mode == "countdown":
             bg = "#6fcdac"
@@ -363,6 +380,15 @@ class TimerView:
         self._tick()
 
     def _tick(self):
+        if self._closed:
+            return
+
+        try:
+            if not self.frame.winfo_exists():
+                return
+        except Exception:
+            return
+
         for st in list(self._timers):
             if st.mode == "countdown" and not st.finished:
                 if st.running:
@@ -381,40 +407,38 @@ class TimerView:
         self._tick_job = self.root.after(250, self._tick)
 
     def _notify_finished(self, st: _TimerState):
+        if self.window is not None:
+            try:
+                self.window.deiconify()
+            except Exception:
+                pass
+            try:
+                self.window.lift()
+            except Exception:
+                pass
+            try:
+                self.window.focus_force()
+            except Exception:
+                pass
+
         if self.beep_on_finish.get():
+            self._play_beep_sequence(count=4, delay_ms=450)
+
+    def _play_beep_sequence(self, count: int, delay_ms: int):
+        if self._closed:
+            return
+
+        def do_one(i: int):
+            if self._closed:
+                return
             try:
                 self.root.bell()
             except Exception:
                 pass
+            if i + 1 < count:
+                try:
+                    self.root.after(delay_ms, lambda: do_one(i + 1))
+                except Exception:
+                    pass
 
-        popup = tk.Toplevel(self.root)
-        popup.title("Timer")
-        popup.resizable(False, False)
-        popup.attributes("-topmost", True)
-
-        try:
-            popup.transient(self.root)
-        except Exception:
-            pass
-
-        frm = tk.Frame(popup, bg="#FFFFFF", padx=14, pady=12)
-        frm.pack(fill="both", expand=True)
-
-        tk.Label(frm, text="Timer finished", bg="#FFFFFF", fg="#1F1F1F", font=("Helvetica", 12, "bold")).pack(anchor="w")
-        tk.Label(frm, text=st.name, bg="#FFFFFF", fg="#4A4A4A", font=("Helvetica", 11)).pack(anchor="w", pady=(4, 0))
-
-        def close():
-            try:
-                popup.destroy()
-            except Exception:
-                pass
-
-        popup.after(2500, close)
-
-        try:
-            popup.update_idletasks()
-            x = self.root.winfo_rootx() + 40
-            y = self.root.winfo_rooty() + 60
-            popup.geometry(f"+{x}+{y}")
-        except Exception:
-            pass
+        do_one(0)
