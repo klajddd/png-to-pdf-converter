@@ -30,6 +30,7 @@ class _TimerState:
     start_ts: float | None = None
     elapsed_before: float = 0.0
     finished_notified: bool = False
+    completion_status: str | None = None  # "completed" | "not_completed" | None
 
 
 class TimerView:
@@ -117,11 +118,8 @@ class TimerView:
         quick = ttk.Frame(row2)
         quick.pack(side="left")
 
-        ttk.Button(quick, text="+1m", command=lambda: self._quick_add(seconds=60)).pack(side="left")
-        ttk.Button(quick, text="+5m", command=lambda: self._quick_add(seconds=5 * 60)).pack(side="left", padx=6)
-        ttk.Button(quick, text="+10m", command=lambda: self._quick_add(seconds=10 * 60)).pack(side="left")
-        ttk.Button(quick, text="+30m", command=lambda: self._quick_add(seconds=30 * 60)).pack(side="left", padx=6)
-        ttk.Button(quick, text="+1h", command=lambda: self._quick_add(seconds=3600)).pack(side="left")
+        ttk.Button(quick, text="+5m", command=lambda: self._quick_add(seconds=5 * 60)).pack(side="left")
+        ttk.Button(quick, text="+1h", command=lambda: self._quick_add(seconds=3600)).pack(side="left", padx=6)
 
         ttk.Button(row2, text="Add", command=self._add_timer, style="Primary.TButton").pack(side="right")
 
@@ -202,6 +200,7 @@ class TimerView:
             duration_seconds=duration,
         )
         self._timers.append(st)
+        self._sort_timers()
 
         self.name.set("")
         self.status_label.config(text="", style="TLabel")
@@ -217,8 +216,9 @@ class TimerView:
             left = tk.Frame(row, bg="#FFFFFF")
             left.pack(side="left", fill="x", expand=True, padx=10, pady=10)
 
-            name_lbl = tk.Label(left, text=st.name, bg="#FFFFFF", fg="#1F1F1F", font=("Helvetica", 12, "bold"))
+            name_lbl = tk.Label(left, text=st.name, bg="#FFFFFF", fg="#1F1F1F", font=("Helvetica", 12, "bold"), cursor="hand2")
             name_lbl.pack(anchor="w")
+            name_lbl.bind("<Button-1>", lambda e, k=st.key: self._edit_name(k))
 
             mode_lbl = tk.Label(
                 left,
@@ -253,6 +253,10 @@ class TimerView:
                 "start": btn_start,
                 "reset": btn_reset,
                 "delete": btn_delete,
+                "completion_frame": None,
+                "btn_completed": None,
+                "btn_not_completed": None,
+                "btn_dismiss": None,
             }
             self._row_widgets[st.key] = widgets
 
@@ -284,8 +288,15 @@ class TimerView:
             return
 
         if st.finished and st.mode == "countdown":
-            bg = "#6fcdac"
-            fg = "#0B2B22"
+            if st.completion_status == "completed":
+                bg = "#4CAF50"
+                fg = "white"
+            elif st.completion_status == "not_completed":
+                bg = "#F44336"
+                fg = "white"
+            else:
+                bg = "#6fcdac"
+                fg = "#0B2B22"
         else:
             bg = "#FFFFFF"
             fg = "#1F1F1F"
@@ -306,8 +317,10 @@ class TimerView:
 
         if st.finished and st.mode == "countdown":
             start_btn.config(state="disabled")
+            self._show_completion_buttons(st)
         else:
             start_btn.config(state="normal")
+            self._hide_completion_buttons(st)
 
     def _get_elapsed(self, st: _TimerState) -> float:
         if st.running and st.start_ts is not None:
@@ -442,3 +455,102 @@ class TimerView:
                     pass
 
         do_one(0)
+
+    def _sort_timers(self):
+        def sort_key(t: _TimerState):
+            if t.mode == "countdown" and not t.finished:
+                return (0, self._get_countdown_remaining(t))
+            elif t.mode == "countdown" and t.finished:
+                return (1, 0)
+            else:
+                return (2, -self._get_elapsed(t))
+        self._timers.sort(key=sort_key)
+        self._reorder_rows()
+
+    def _reorder_rows(self):
+        for i, st in enumerate(self._timers):
+            widgets = self._row_widgets.get(st.key)
+            if widgets:
+                try:
+                    widgets["row"].pack_forget()
+                    widgets["row"].pack(fill="x", pady=6, after=self.scrollable_frame.winfo_children()[i-1] if i > 0 else None)
+                except Exception:
+                    widgets["row"].pack(fill="x", pady=6)
+
+    def _edit_name(self, key: str):
+        st = self._find_timer(key)
+        if st is None:
+            return
+
+        widgets = self._row_widgets.get(key)
+        if widgets is None:
+            return
+
+        name_lbl = widgets["name"]
+        current_name = st.name
+
+        entry = ttk.Entry(widgets["left"], textvariable=tk.StringVar(value=current_name))
+        entry.pack(anchor="w", after=name_lbl)
+        entry.focus()
+        entry.select_range(0, tk.END)
+
+        def save():
+            new_name = entry.get().strip()
+            if new_name:
+                st.name = new_name
+                name_lbl.config(text=new_name)
+            entry.destroy()
+
+        def cancel(e=None):
+            entry.destroy()
+
+        entry.bind("<Return>", lambda e: save())
+        entry.bind("<Escape>", cancel)
+        entry.bind("<FocusOut>", lambda e: cancel() if entry.focus_get() else None)
+
+    def _show_completion_buttons(self, st: _TimerState):
+        widgets = self._row_widgets.get(st.key)
+        if widgets is None or widgets["completion_frame"]:
+            return
+
+        frame = ttk.Frame(widgets["row"])
+        frame.pack(side="right", padx=10, after=widgets["start"].master)
+
+        btn_completed = ttk.Button(frame, text="Completed", command=lambda: self._set_completion(st.key, "completed"))
+        btn_completed.pack(side="left", padx=(0, 4))
+
+        btn_not_completed = ttk.Button(frame, text="Not Completed", command=lambda: self._set_completion(st.key, "not_completed"))
+        btn_not_completed.pack(side="left", padx=(0, 4))
+
+        btn_dismiss = ttk.Button(frame, text="Dismiss", command=lambda: self._set_completion(st.key, None))
+        btn_dismiss.pack(side="left")
+
+        widgets["completion_frame"] = frame
+        widgets["btn_completed"] = btn_completed
+        widgets["btn_not_completed"] = btn_not_completed
+        widgets["btn_dismiss"] = btn_dismiss
+
+    def _hide_completion_buttons(self, st: _TimerState):
+        widgets = self._row_widgets.get(st.key)
+        if widgets is None or not widgets["completion_frame"]:
+            return
+
+        try:
+            widgets["completion_frame"].destroy()
+        except Exception:
+            pass
+
+        widgets["completion_frame"] = None
+        widgets["btn_completed"] = None
+        widgets["btn_not_completed"] = None
+        widgets["btn_dismiss"] = None
+
+    def _set_completion(self, key: str, status: str | None):
+        st = self._find_timer(key)
+        if st is None:
+            return
+
+        st.completion_status = status
+        self._update_row_visuals(st)
+        if status is not None:
+            self._hide_completion_buttons(st)
