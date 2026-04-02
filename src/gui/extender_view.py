@@ -294,11 +294,22 @@ class ExtenderView:
                         temp_dir=Path(td),
                     )
 
+                if renamed_base and renamed_base.exists():
+                    renamed_base.unlink()
+
+                deleted_attachments = 0
+                for att in attachments:
+                    try:
+                        if att.exists():
+                            att.unlink()
+                            deleted_attachments += 1
+                    except Exception:
+                        pass
+
                 def update_status():
-                    if renamed_base:
-                        self.base_path.set(str(renamed_base))
+                    self.base_path.set(str(out_path))
                     self.status_label.config(
-                        text=f"Created: {out_path.name}  Added pages: {pages}",
+                        text=f"Done: {out_path.name} (+{pages} pages). Base and {deleted_attachments} attachment(s) deleted.",
                         style="Success.TLabel",
                     )
 
